@@ -16,6 +16,7 @@ LAMForge follows a deterministic, reproducible workflow:
 8. Handle proton release and mobile species
 9. Replicate the structure if requested
 10. Write a complete, LAMMPS-compatible data file
+    
 
 ## ▶ How to Run
 
@@ -24,6 +25,7 @@ LAMForge requires Python 3.9 or newer.
 1. Clone the repository and open a terminal in the project directory
 2. Install dependencies: py -m pip install -r requirements.txt
 3. Run the script: py lamforge.py
+   
 
 📖 Citation
 
@@ -31,6 +33,7 @@ If you use LAMForge in academic work, please cite:
 
 K. Xanthopoulos, LAMForge: Automatic topology and force-field generator for LAMMPS,
 GitHub repository, https://github.com/xanthop-chem/LAMForge
+
 
 🙏 Acknowledgements
 
@@ -40,6 +43,7 @@ The UFF parameters where taken from the peteboyd/lammps_interface repository.
 
 Parts of the design, debugging, and documentation benefited from interactive assistance provided by **ChatGPT (OpenAI)**.  
 Final implementation, validation, and scientific decisions are solely the responsibility of the author.
+
 
 📜 License
 
