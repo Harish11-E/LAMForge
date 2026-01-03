@@ -28,6 +28,7 @@ GitHub repository, https://github.com/xanthop-chem/LAMForge
 
 LAMForge was inspired by existing tools for preparing LAMMPS simulations, in particular the **LAMMPS Interface** workflow.  
 All code was written independently and no code from other projects is included.
+The UFF parameters where taken from the peteboyd/lammps_interface repository.
 
 Parts of the design, debugging, and documentation benefited from interactive assistance provided by **ChatGPT (OpenAI)**.  
 Final implementation, validation, and scientific decisions are solely the responsibility of the author.
