@@ -6,4 +6,4 @@ LAMForge turns crystal structures into ready-to-run LAMMPS data files by automat
 If you use LAMForge in academic work, please cite:
 
 K. Xanthopoulos, *LAMForge: Automatic topology and force-field generator for LAMMPS*,  
-GitHub repository, https://github.com/USERNAME/LAMForge
+GitHub repository, https://github.com/xanthop-chem/LAMForge
