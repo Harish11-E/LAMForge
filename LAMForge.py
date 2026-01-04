@@ -962,13 +962,21 @@ def write_lammps_data(
     include_impropers=True,
     restrain_bond_factor=0.0,
     restrain_angle_factor=0.0,
+    restrain_policy="soften_mismatch",
     title="LAMMPS data file",
 ):
     """
     ff_mode:
-      - 'UFF_all_cryst'  : Restrained UFF: force constants from UFF, r0/θ0 from CIF,
-                           with attenuation controlled by restrain_*_factor.
-      - 'UFF_all_uff'    : pure UFF (force constants + equilibrium r0/θ0 from UFF).
+      - 'UFF_all_cryst'  : UFF with crystallographic equilibrium geometry (CIF).
+                           r0/θ0 are taken from CIF (averaged per type). Force constants can be
+                           modified using the restraint sliders (restrain_*_factor) and the selected
+                           restraint policy (restrain_policy).
+      - 'UFF_all_uff'    : Pure UFF (force constants + equilibrium r0/θ0 from UFF).
+
+    restrain_policy (used only when ff_mode == 'UFF_all_cryst' and sliders > 0):
+      - 'soften_mismatch': k is reduced with mismatch between CIF and UFF minima (never stiffens)
+      - 'recompute_cif'  : recompute k using CIF equilibrium geometry with the same UFF formulas
+                           (can soften or stiffen, e.g., shorter CIF bonds → larger k)
     """
     ff_mode_effective = ff_mode
 
@@ -1233,7 +1241,9 @@ def write_lammps_data(
     def _uff_angle_params_for_labels(lbl_i, lbl_j, lbl_k,
                                      theta0_deg_override=None,
                                      bond_order_ij=1.0,
-                                     bond_order_jk=1.0):
+                                     bond_order_jk=1.0,
+                                     r0_ij_override=None,
+                                     r0_jk_override=None):
         """
         UFF valence angle term (eq. 13 με το σωστό bracket
         3 R_ij R_jk (1 - cos^2 θ0) - R_ik^2 cos θ0) χαρτογραφημένο σε
@@ -1261,6 +1271,13 @@ def write_lammps_data(
         _, R_jk = _uff_bond_params_for_labels(lbl_j, lbl_k, bond_order_jk)
         if R_ij is None or R_jk is None:
             return None, None
+
+        # Optional overrides (used for CIF-restrained recomputation of k):
+        # If provided, treat the overridden values as the equilibrium bond lengths used in the UFF angle expression.
+        if r0_ij_override is not None and r0_ij_override > 1.0e-12:
+            R_ij = r0_ij_override
+        if r0_jk_override is not None and r0_jk_override > 1.0e-12:
+            R_jk = r0_jk_override
 
         # γωνία ισορροπίας: είτε override, είτε από τα UFF atom params
         if theta0_deg_override is not None:
@@ -1679,8 +1696,11 @@ def write_lammps_data(
 
         k_r_uff, R_ij_uff = _uff_bond_params_for_labels(ti, tj, bond_order=1.0)
 
-        if ff_mode_effective == "UFF_all_uff" and (R_ij_uff is not None):
-            r0 = R_ij_uff
+        # Equilibrium bond length selection:
+        # - Pure UFF: use UFF r0
+        # - CIF mode: use CIF r0 only if the bond restraint slider is active (>0); otherwise behave as pure UFF
+        if (ff_mode_effective == "UFF_all_uff") or (ff_mode_effective == "UFF_all_cryst" and restrain_bond_factor <= 0.0):
+            r0 = R_ij_uff if (R_ij_uff is not None) else bond_type_r0_cif.get(key, 1.5)
         else:
             r0 = bond_type_r0_cif.get(key, R_ij_uff if R_ij_uff is not None else 1.5)
 
@@ -1689,13 +1709,38 @@ def write_lammps_data(
         else:
             k = 300.0  # fallback
 
-        if ff_mode_effective == "UFF_all_cryst" and k_r_uff is not None and R_ij_uff is not None and restrain_bond_factor > 0.0:
+        if (ff_mode_effective == "UFF_all_cryst" and
+                k_r_uff is not None and
+                R_ij_uff is not None and
+                restrain_bond_factor > 0.0):
             r0_cif = bond_type_r0_cif.get(key, R_ij_uff)
-            if r0_cif is not None and R_ij_uff > 1.0e-6:
-                delta_rel = abs(r0_cif - R_ij_uff) / R_ij_uff
-                k_att = k_r_uff / (1.0 + delta_rel)
+            if r0_cif is not None and r0_cif > 1.0e-6 and R_ij_uff > 1.0e-6:
                 s = restrain_bond_factor
-                k = (1.0 - s) * k_r_uff + s * k_att
+                policy = (restrain_policy or "soften_mismatch").strip()
+
+                if policy == "recompute_cif":
+                    # Recompute stiffness using the same UFF formula, but evaluated at the CIF equilibrium length.
+                    # This can soften OR stiffen (e.g., shorter CIF bonds → larger k).
+                    p_i = _uff_get_for_label(ti)
+                    p_j = _uff_get_for_label(tj)
+                    if p_i is not None and p_j is not None:
+                        Zi = p_i.get("Z", None)
+                        Zj = p_j.get("Z", None)
+                    else:
+                        Zi = Zj = None
+
+                    if Zi is not None and Zj is not None:
+                        k_cif = KR_PREF * Zi * Zj / (r0_cif ** 3)
+                        k_cif *= 0.5  # match mapping used in _uff_bond_params_for_labels
+                        k_target = k_cif
+                    else:
+                        k_target = k_r_uff
+                else:
+                    # Safe policy: attenuate k by mismatch magnitude (never stiffens)
+                    delta_rel = abs(r0_cif - R_ij_uff) / R_ij_uff
+                    k_target = k_r_uff / (1.0 + delta_rel)
+
+                k = (1.0 - s) * k_r_uff + s * k_target
 
         comment = f"{ti} -- {tj}"
 
@@ -1734,7 +1779,11 @@ def write_lammps_data(
 
         theta_cif = angle_type_theta0_cif[key]
 
-        if ff_mode_effective == "UFF_all_uff" and theta_uff is not None:
+        # Equilibrium angle selection:
+        # - Pure UFF: use UFF theta0
+        # - CIF mode: use CIF theta0 only if the angle restraint slider is active (>0); otherwise behave as pure UFF
+        if ((ff_mode_effective == "UFF_all_uff") or
+                (ff_mode_effective == "UFF_all_cryst" and restrain_angle_factor <= 0.0)) and theta_uff is not None:
             theta0_deg = theta_uff
         else:
             theta0_deg = theta_cif
@@ -1761,10 +1810,32 @@ def write_lammps_data(
                 theta_uff is not None and
                 abs(theta_uff) > 1.0e-6 and
                 restrain_angle_factor > 0.0):
-            delta_rel = abs(theta_cif - theta_uff) / abs(theta_uff)
-            k_att = k_theta_uff / (1.0 + delta_rel)
             s = restrain_angle_factor
-            k = (1.0 - s) * k_theta_uff + s * k_att
+            policy = (restrain_policy or "soften_mismatch").strip()
+
+            if policy == "recompute_cif":
+                # Recompute k using CIF equilibrium geometry with the same UFF angular formula.
+                # This may soften or stiffen depending on how CIF geometry differs from UFF.
+                key_ij = tuple(sorted((ti, tj)))
+                key_jk = tuple(sorted((tj, tk)))
+                r0_ij_cif = bond_type_r0_cif.get(key_ij, None)
+                r0_jk_cif = bond_type_r0_cif.get(key_jk, None)
+
+                k_theta_cif, _ = _uff_angle_params_for_labels(
+                    ti, tj, tk,
+                    theta0_deg_override=theta_cif,
+                    bond_order_ij=1.0,
+                    bond_order_jk=1.0,
+                    r0_ij_override=r0_ij_cif,
+                    r0_jk_override=r0_jk_cif,
+                )
+                k_target = k_theta_cif if k_theta_cif is not None else k_theta_uff
+            else:
+                # Safe policy: attenuate k by mismatch magnitude (never stiffens)
+                delta_rel = abs(theta_cif - theta_uff) / abs(theta_uff)
+                k_target = k_theta_uff / (1.0 + delta_rel)
+
+            k = (1.0 - s) * k_theta_uff + s * k_target
             theta0 = theta_cif
 
         comment = f"{ti} -- {tj} -- {tk}{extra}"
@@ -1957,6 +2028,10 @@ class TopologyBuilderApp(tk.Tk):
         self.restrain_angle_slider = tk.DoubleVar(value=100.0)  # 0–100 %
         self.restrain_bonds = tk.BooleanVar(value=True)
         self.restrain_angles = tk.BooleanVar(value=True)
+        # restraint policy: how k is modified when using CIF equilibrium
+        # 'soften_mismatch' (safe): k decreases with |Δ|; never stiffens
+        # 'recompute_cif' (UFF-consistent): recompute k using CIF r0/θ0 (can soften or stiffen)
+        self.restrain_policy = tk.StringVar(value="soften_mismatch")
 
         # free proton indices (1-based)
         self.free_proton_str = tk.StringVar(value="")
@@ -2321,10 +2396,27 @@ class TopologyBuilderApp(tk.Tk):
 
         ttk.Label(
             restrain_frame,
-            text="0 → pure UFF, 100 → fully restrained (k attenuated by Δ between UFF and CIF minima).",
+            text="restrain policy:",
             foreground="#555",
-        ).grid(row=2, column=0, columnspan=3, sticky="w", padx=5, pady=(0, 3))
+        ).grid(row=2, column=0, sticky="w", padx=5, pady=(0, 3))
 
+        policy_cb = ttk.Combobox(
+            restrain_frame,
+            textvariable=self.restrain_policy,
+            state="readonly",
+            values=[
+                "soften_mismatch",
+                "recompute_cif",
+            ],
+            width=28,
+        )
+        policy_cb.grid(row=2, column=1, columnspan=2, sticky="ew", padx=5, pady=(0, 3))
+
+        ttk.Label(
+            restrain_frame,
+            text="Slider: 0 → pure UFF; 100 → use CIF equilibrium. Policy controls whether k is only softened (soften_mismatch) or recomputed at CIF geometry (recompute_cif).",
+            foreground="#555",
+        ).grid(row=3, column=0, columnspan=3, sticky="w", padx=5, pady=(0, 3))
         # topology simplifications
         rm_frame = ttk.LabelFrame(frame_ff, text="Optional topology simplifications")
         rm_frame.grid(row=9, column=0, columnspan=3, sticky="ew", padx=5, pady=(5, 5))
@@ -3052,7 +3144,7 @@ class TopologyBuilderApp(tk.Tk):
                 s_angle = max(0.0, min(1.0, self.restrain_angle_slider.get() / 100.0))
             else:
                 s_angle = 0.0
-            self.log(f"Restrained UFF: bond restraint = {s_bond*100:.1f}%, angle restraint = {s_angle*100:.1f}%.")
+            self.log(f"Restrained UFF: bond restraint = {s_bond*100:.1f}%, angle restraint = {s_angle*100:.1f}%, policy = {self.restrain_policy.get()}.")
         else:
             s_bond = 0.0
             s_angle = 0.0
@@ -3076,6 +3168,7 @@ class TopologyBuilderApp(tk.Tk):
                 include_impropers=self.include_impropers.get(),
                 restrain_bond_factor=s_bond,
                 restrain_angle_factor=s_angle,
+                restrain_policy=self.restrain_policy.get(),
                 title=os.path.basename(cif),
             )
         except Exception:
